@@ -431,7 +431,7 @@ public class Ticketmaster{
 	public static void CancelPendingBookings(Ticketmaster esql){//4
 		String sql_stmt = "UPDATE Bookings SET status = 'Cancelled' WHERE status = 'Pending';";
 		esql.executeUpdate(sql_stmt);
-		System.out.println("All pending bookings have been cancelled\n");
+		System.out.println("All pending bookings have been marked as cancelled\n");
 	}
 	
 	public static void ChangeSeatsForBooking(Ticketmaster esql) throws Exception{//5
@@ -439,21 +439,30 @@ public class Ticketmaster{
 			String bookingID;
 			String seatID;
 			String new_seatID;
+			String sql_stmt;
 
 			System.out.print("Enter the booking ID of the seat you want to change ");
 			bookingID = in.readLine();
-			
-			// TODO:
-			// list all the bookings they have (seat IDs, booked show, theatre name) and ask which one they want to change
-			
-			System.out.print("From the list, what is the seat ID that you want to change?");
+	
+			System.out.print("What is the seat ID that you want to change?");
 			seatID = in.readLine();
-			
 			System.out.print("What is your new seat ID?");
 			new_seatID = in.readLine();
-			
-			// TODO:
-			// validate that it is a valid seat (available and same price)
+
+ 			/* TODO:
+			if (new_seatID = ssid AND bid = null) {
+				if (price = new_seatID price) {
+					sql_stmt "UPDATE ShowSeats SET bid = null WHERE ssid = " + seatID;
+					esql.executeUpdate(sql_stmt);
+					sql_stmt = "UPDATE ShowSeats SET bid = " + bid + " WHERE ssid = " + new_seatID;
+					esql.executeUpdate(sql_stmt);
+					System.out.println("Successfully replaced your seat!\n");
+				} else {
+					System.out.println("Sorry! The seat you want to switch is different in price. \n")
+				}
+			} else {
+				System.out.println("Sorry! We couldn't find that \n");
+			}*/
 			System.out.println("Successfully replaced your seat!\n");
 		} catch (Exception e) {
 			System.out.println(e.getMessage() + "\n");
@@ -463,14 +472,27 @@ public class Ticketmaster{
 	public static void RemovePayment(Ticketmaster esql){//6
 		try {
 			String paymentID;
+			String sql_stmt;
+			String bid;
+			String seatID;
 
 			System.out.print("Enter the payment ID you want to remove: ");
 			paymentID = in.readLine();
 			
-			// TODO:
 			// find matching bid to the bid in payment
+			sql_stmt = "SELECT bid FROM Payments WHERE pid = " + paymentID;
+			bid = esql.executeUpdate(sql_stmt).get(0).get(0);
+
+			sql_stmt = "SELECT sid FROM ShowSeats, Bookings WHERE bid = " + bid;
+			seatID = esql.executeUpdate(sql_stmt).get(0).get(0);
+			
 			// change booking status from that bid to cancelled
+			sql_stmt "UPDATE ShowSeats SET bid = \"Cancelled\" WHERE ssid = " + seatID + "AND bid = " + bid;
+			esql.executeUpdate(sql_stmt);
+			
 			// remove the payment instance
+			sql_stmt = "DELETE FROM Payments WHERE pid = " + paymentID;
+			esql.executeUpdate(sql_stmt)
 			System.out.println("Successfully removed the payment!\n");
 		} catch (Exception e) {
 			System.out.println(e.getMessage() + "\n");
@@ -482,29 +504,25 @@ public class Ticketmaster{
 		esql.executeUpdate(sql_stmt);
 		System.out.println("All cancelled bookings have been removed\n");
 	}
-	
-	public static void RemoveShowsOnDate(Ticketmaster esql){//8
-		// TODO:
-		try {
-			String showName;
-			String theatreName;
 
-			System.out.print("What is the name of the show?");
-			showName = in.readLine();
-			
+	public static void RemoveShowsOnDate(Ticketmaster esql){//8
+		try {
+			String theatreName;
+			String showDate;
+
 			System.out.print("What is the name of the cinema?\n");
 			theatreName = in.readLine();
 			
+			System.out.print("What is the date that you want to cancel?\n");
+			showDate = in.readLine();
+			
 			// TODO:
-			// find matching bid to the bid in payment
-			// change booking status from that bid to cancelled
-			// remove the payment instance
-			System.out.println("Successfully removed the payment!\n");
+			// "remove" bookings using remove payment above
+			
+			System.out.println("Successfully removed all shows on that date!\n");
 		} catch (Exception e) {
 			System.out.println(e.getMessage() + "\n");
 		}	
-		// "remove" bookings using remove payment above
-		// remove the show
 	}
 	
 	public static void ListTheatersPlayingShow(Ticketmaster esql){//9
