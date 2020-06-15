@@ -128,6 +128,14 @@ CREATE TABLE Plays (
 );
 
 
+-- Sequences
+
+CREATE SEQUENCE Booking_Seq START 501;
+CREATE SEQUENCE Movie_Seq START 54;
+CREATE SEQUENCE Show_Seq START 201;
+CREATE SEQUENCE ShowSeat_Seq START 1201;
+
+
 ----------------------------
 -- INSERT DATA STATEMENTS --
 ----------------------------

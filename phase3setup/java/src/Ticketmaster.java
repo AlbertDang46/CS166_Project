@@ -23,6 +23,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Random;
 import java.math.BigInteger;  
 import java.nio.charset.StandardCharsets; 
 import java.security.MessageDigest;  
@@ -374,27 +375,53 @@ public class Ticketmaster{
 	
 	public static void AddBooking(Ticketmaster esql){//2
 		try {
+			String status;
+			String bdatetime;
+			int seats;
+			long sid;
 			String email;
-			String first;
-			String last;
-			long phone_number;
-			String password;
 
-			System.out.print("Enter email address: ");
+			String movie_title;
+			List<Long> ssids = new ArrayList<Long>();
+
+			System.out.print("Enter booking status: ");
+			status = in.readLine();
+			System.out.print("Enter booking datetime in format YYYY-MM-DD HH:MM:SS: ");
+			bdatetime = in.readLine() + "-08";
+			System.out.print("Enter user account email: ");
 			email = in.readLine();
-			System.out.print("Enter first name: ");
-			first = in.readLine();
-			System.out.print("Enter last name: ");
-			last = in.readLine();
-			System.out.print("Enter phone number: ");
-			phone_number = Long.parseLong(in.readLine());
-			System.out.print("Enter new password: ");
-			password = toHexString(getSHA(in.readLine()));
-		
-			String sql_stmt = String.format("INSERT INTO Users (email, lname, fname, phone, pwd) VALUES ('%s', '%s', '%s', '%d', '%s');", email, last, first, phone_number, password);
-			esql.executeUpdate(sql_stmt);
 
-			System.out.println("Successfully added new user!\n");
+			System.out.print("Enter title of movie to book: ");
+			movie_title = in.readLine();
+			List<List<String>> movie_list = esql.executeQueryAndReturnResult(String.format("SELECT mvid FROM Movies WHERE title = '%s';", movie_title));
+			long mvid = Long.parseLong(movie_list.get(0).get(0));
+
+			System.out.print(String.format("Here are a list of showings for %s\n", movie_title));
+			esql.executeQueryAndPrintResult(String.format("SELECT S.sid, S.sdate, S.sttime, S.edtime, T.tname, T.tseats FROM Shows S, Theaters T, Plays P WHERE S.sid = P.sid AND T.tid = P.tid AND S.mvid = %d AND (S.sdate > CAST('%s' AS DATE) OR (S.sdate = CAST('%s' AS DATE) AND S.edtime > CAST('%s' AS TIME)));", mvid, bdatetime.substring(0, 10), bdatetime.substring(0, 10), bdatetime.substring(11, 19)));
+			System.out.print("Enter in SID of showing that you would like to book: ");
+			sid = Long.parseLong(in.readLine());
+
+			System.out.print("Here are a list of available seats for your selected movie showing\n");
+			esql.executeQueryAndPrintResult(String.format("SELECT ssid, price FROM ShowSeats WHERE sid = %d AND bid IS NULL;", sid));
+			System.out.print("Enter in ssids of seats you would like to book on each line or enter in 'q' to stop selecting seats:\n");
+			seats = 0;
+			boolean selectSeats = true;
+			while(selectSeats) {
+				String selection = in.readLine();
+				if(selection.equals("q")) {
+					break;
+				}
+				ssids.add(Long.parseLong(selection));
+				seats++;
+			}
+
+			esql.executeUpdate(String.format("INSERT INTO Bookings (bid, status, bdatetime, seats, sid, email) VALUES (nextval('Booking_Seq'), '%s', '%s', %d, %d, '%s');", status, bdatetime, seats, sid, email));
+
+			for(long ssid : ssids) {
+				esql.executeUpdate(String.format("UPDATE ShowSeats SET bid = %d WHERE ssid = %d", esql.getCurrSeqVal("Booking_Seq"), ssid));
+			}
+
+			System.out.println("Successfully added new booking!\n");
 		} catch (Exception e) {
 			System.out.println(e.getMessage() + "\n");
 		}
@@ -402,27 +429,68 @@ public class Ticketmaster{
 	
 	public static void AddMovieShowingToTheater(Ticketmaster esql){//3
 		try {
-			String email;
-			String first;
-			String last;
-			long phone_number;
-			String password;
+			String title;
+			String rdate;
+			String country;
+			String description;
+			int duration;
+			String lang;
+			String genre;
 
-			System.out.print("Enter email address: ");
-			email = in.readLine();
-			System.out.print("Enter first name: ");
-			first = in.readLine();
-			System.out.print("Enter last name: ");
-			last = in.readLine();
-			System.out.print("Enter phone number: ");
-			phone_number = Long.parseLong(in.readLine());
-			System.out.print("Enter new password: ");
-			password = toHexString(getSHA(in.readLine()));
-		
-			String sql_stmt = String.format("INSERT INTO Users (email, lname, fname, phone, pwd) VALUES ('%s', '%s', '%s', '%d', '%s');", email, last, first, phone_number, password);
-			esql.executeUpdate(sql_stmt);
+			String city;
+			long cid;
+			long tid;
 
-			System.out.println("Successfully added new user!\n");
+			String sdate;
+			String sttime;
+			String edtime;
+			
+			System.out.print("Enter title of new movie: ");
+			title = in.readLine();
+			System.out.print("Enter release date of new movie in format MM/DD/YYYY: ");
+			rdate = in.readLine();
+			System.out.print("Enter country of new movie: ");
+			country = in.readLine();
+			System.out.print("Enter description of new movie: ");
+			description = in.readLine();
+			System.out.print("Enter duration of new movie: ");
+			duration = Integer.parseInt(in.readLine());
+			System.out.print("Enter language code of new movie: ");
+			lang = in.readLine();
+			System.out.print("Enter genre of new movie: ");
+			genre = in.readLine();
+
+			esql.executeUpdate(String.format("INSERT INTO Movies (mvid, title, rdate, country, description, duration, lang, genre) VALUES (nextval('Movie_Seq'), '%s', '%s', '%s', '%s', %d, '%s', '%s');", title, rdate, country, description, duration, lang, genre));
+
+			System.out.print("Enter in city of cinema where showing will be: ");
+			city = in.readLine();
+			System.out.print("Here are a list of cinemas in this city\n");
+			esql.executeQueryAndPrintResult(String.format("SELECT C2.cid, C2.cname, C2.tnum FROM Cities C1, Cinemas C2 WHERE C1.city_id = C2.city_id AND C1.city_name = '%s';", city));
+
+			System.out.print("Enter in cid of cinema where showing will be: ");
+			cid = Long.parseLong(in.readLine());
+			System.out.print("Here are a list of theaters in the selected cinema\n");
+			esql.executeQueryAndPrintResult(String.format("SELECT tid, tname, tseats FROM Theaters WHERE cid = %d;", cid));
+
+			System.out.print("Enter in tid of theater where showing will be: ");
+			tid = Long.parseLong(in.readLine());
+			System.out.print("Enter in date of showing in format MM/DD/YYYY: ");
+			sdate = in.readLine();
+			System.out.print("Enter in start time of showing in format HH:MM: ");
+			sttime = in.readLine();
+			System.out.print("Enter in end time of showing in format HH:MM: ");
+			edtime = in.readLine();
+
+			esql.executeUpdate(String.format("INSERT INTO Shows (sid, mvid, sdate, sttime, edtime) VALUES (nextval('Show_Seq'), %d, '%s', '%s', '%s');", esql.getCurrSeqVal("Movie_Seq"), sdate, sttime, edtime));
+			esql.executeUpdate(String.format("INSERT INTO Plays (sid, tid) VALUES (%d, %d);", esql.getCurrSeqVal("Show_Seq"), tid));
+
+			List<List<String>> cinemaSeats = esql.executeQueryAndReturnResult(String.format("SELECT * FROM CinemaSeats WHERE tid = %d;", tid));
+
+			for(List<String> cs: cinemaSeats) {
+				esql.executeUpdate(String.format("INSERT INTO ShowSeats (ssid, sid, csid, price) VALUES (nextVal('ShowSeat_Seq'), %d, %d, %d);", esql.getCurrSeqVal("Show_Seq"), Long.parseLong(cs.get(0)), new Random().nextInt(7) + 6));
+			}
+
+			System.out.println("Successfully added new movie showing!\n");
 		} catch (Exception e) {
 			System.out.println(e.getMessage() + "\n");
 		}
@@ -526,32 +594,95 @@ public class Ticketmaster{
 	}
 	
 	public static void ListTheatersPlayingShow(Ticketmaster esql){//9
-		//
-		
+		try {
+			String sdate;
+			long sid;
+
+			System.out.print("Enter in start date of show in format MM/DD/YYYY: ");
+			sdate = in.readLine();
+
+			System.out.print("Here are all the shows playing on this date\n");
+			esql.executeQueryAndPrintResult(String.format("SELECT * FROM Shows WHERE sdate = '%s';", sdate));
+			
+			System.out.print("Enter in sid of show: ");
+			sid = Long.parseLong(in.readLine());
+
+			System.out.print("Here are all the theaters playing this show\n");
+			esql.executeQueryAndPrintResult(String.format("SELECT C1.city_name, C2.cname, T.tname, T.tseats FROM Cities C1, Cinemas C2, Theaters T, Plays P WHERE P.sid = %d AND P.tid = T.tid AND T.cid = C2.cid AND C2.city_id = C1.city_id;", sid));
+		} catch (Exception e) {
+			System.out.println(e.getMessage() + "\n");
+		}
 	}
 	
 	public static void ListShowsStartingOnTimeAndDate(Ticketmaster esql){//10
-		//
-		
+		try {
+			String sdate;
+			String sttime;
+
+			System.out.print("Enter in start date of show in format MM/DD/YYYY: ");
+			sdate = in.readLine();
+			System.out.print("Enter in start time of show in format HH:MM: ");
+			sttime = in.readLine();
+
+			System.out.print("Here are all the shows that start on this date and time\n");
+			esql.executeQueryAndPrintResult(String.format("SELECT * FROM Shows WHERE sdate = '%s' AND sttime = '%s';", sdate, sttime));
+		} catch (Exception e) {
+			System.out.println(e.getMessage() + "\n");
+		}
 	}
 
 	public static void ListMovieTitlesContainingLoveReleasedAfter2010(Ticketmaster esql){//11
-		//
-		
+		try {
+			System.out.print("Here are all movies containing the word 'love' released after 2010\n");
+			esql.executeQueryAndPrintResult("SELECT * FROM Movies WHERE title ILIKE '%love%' AND rdate > CAST('12/31/2010' AS DATE);");
+		} catch (Exception e) {
+			System.out.println(e.getMessage() + "\n");
+		}
 	}
 
 	public static void ListUsersWithPendingBooking(Ticketmaster esql){//12
-		//
-		
+		try {
+			System.out.print("Here are all the users who have a booking with a status of pending\n");
+			esql.executeQueryAndPrintResult("SELECT U.fname, U.lname, U.email FROM Users U, Bookings B WHERE B.status = 'Pending' AND B.email = U.email;");
+		} catch (Exception e) {
+			System.out.println(e.getMessage() + "\n");
+		}
 	}
 
 	public static void ListMovieAndShowInfoAtCinemaInDateRange(Ticketmaster esql){//13
-		//
-		
+		try {
+			String title;
+			long mvid;
+			String startDate;
+			String endDate;
+
+			System.out.print("Enter movie title: ");
+			title = in.readLine();
+			mvid = Long.parseLong(esql.executeQueryAndReturnResult(String.format("SELECT mvid FROM Movies WHERE title = '%s';", title)).get(0).get(0));
+
+			System.out.print("Enter start date of date range in format MM/DD/YYYY: ");
+			startDate = in.readLine();
+			System.out.print("Enter end date of date range in format MM/DD/YYYY: ");
+			endDate = in.readLine();
+
+			System.out.print("Here are all the shows playing this movie in this date range\n");
+			esql.executeQueryAndPrintResult(String.format("SELECT M.title, M.duration, S.sdate, S.sttime FROM Movies M, Shows S WHERE M.mvid = %d AND M.mvid = S.mvid AND S.sdate >= CAST('%s' AS DATE) AND S.sdate <= CAST('%s' AS DATE)", mvid, startDate, endDate));
+		} catch (Exception e) {
+			System.out.println(e.getMessage() + "\n");
+		}
 	}
 
 	public static void ListBookingInfoForUser(Ticketmaster esql){//14
-		//
-		
+		try {
+			String email;
+
+			System.out.print("Enter in user email: ");
+			email = in.readLine();
+
+			System.out.print("Here are all the bookings for this user\n");
+			esql.executeQueryAndPrintResult(String.format("SELECT M.title, S1.sdate, S1.sttime, T.tname, C.sno FROM Movies M, Shows S1, Theaters T, ShowSeats S2, CinemaSeats C, Plays P, Bookings B WHERE B.email = '%s' AND B.sid = S1.sid AND S1.mvid = M.mvid AND S1.sid = P.sid AND P.tid = T.tid AND B.bid = S2.bid AND S2.csid = C.csid", email));
+		} catch (Exception e) {
+			System.out.println(e.getMessage() + "\n");
+		}
 	}
 }
